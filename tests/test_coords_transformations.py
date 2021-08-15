@@ -4,27 +4,26 @@ import random
 
 from pygame.math import Vector2
 
-from isogame.utils import iso_to_world, world_to_iso
+
+def test_transformations_identity(isometric_map):
+    
+    iso_coords = Vector2(1, 1)
+
+    world_coords = isometric_map.iso_to_cartesian(iso_coords)
+
+    assert world_coords == Vector2(isometric_map.cartesian_size, 0)
+
+    assert iso_coords == isometric_map.cartesian_to_iso(world_coords)
 
 
-def test_transformations_identity():
-	
-	iso_coords = Vector2(1, 1)
+def test_transformations_random(isometric_map):
 
-	world_coords = iso_to_world(iso_coords)
+    _min, _max = (0, 1000)
 
-	assert world_coords == Vector2(1.5, 0.25)
+    iso_coords = Vector2(
+        random.randint(_min, _max),
+        random.randint(_min, _max),
+    )
 
-	assert iso_coords == world_to_iso(world_coords)
-
-
-def test_transformations_random():
-
-	_min, _max = (0, 1000)
-
-	iso_coords = Vector2(
-		random.randint(_min, _max),
-		random.randint(_min, _max),
-	)
-
-	assert iso_coords == world_to_iso(iso_to_world(iso_coords))
+    assert iso_coords == isometric_map.cartesian_to_iso(
+        isometric_map.iso_to_cartesian(iso_coords))

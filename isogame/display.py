@@ -9,22 +9,32 @@ from pygame.math import Vector2
 
 from sortedcontainers import SortedList
 
-from .utils import iso_to_world, world_to_iso
-
 
 class Camera:
 
-    def __init__(self, position: Vector2, size: Vector2):
+    def __init__(
+        self,
+        position: Vector2,
+        size: Vector2,
+        _map
+    ):
         self.position = position
         self.size = size
+        self._map = _map
 
-        self.scroll_speed = 600
+        self.scroll_speed = 600 
 
     def get_draw_delta(self) -> Vector2:
-        return -(iso_to_world(self.position) - (self.size / 2))
+        return -(
+            self._map.iso_to_cartesian(self.position) -
+            (self.size / 2)
+        )
 
     def update(self, delta, input):
-        self.position += world_to_iso(input.axis * self.scroll_speed * delta)
+        self.position += self._map.cartesian_to_iso(
+            input.axis * self.scroll_speed * delta,
+        )
+        self._map.trap_camera(self)
 
 
 class Drawable(ABC):
@@ -47,9 +57,7 @@ class Display:
         self.size = Vector2(1280, 720)
         self.screen = pygame.display.set_mode(
             (int(self.size.x), int(self.size.y)))
-        self.camera = Camera(
-            Vector2(0, 0), self.size
-        )
+        self.camera = None 
         self.renderlist = SortedList(
             key=lambda x: x.get_order_value())
 
@@ -66,3 +74,4 @@ class Display:
             obj.raw_draw()
 
         self.renderlist.clear()
+
