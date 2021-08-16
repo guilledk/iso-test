@@ -9,8 +9,6 @@ from pygame import (
 )
 from pygame.math import Vector2
 
-from .display import Drawable, Display
-
 
 def get_index_or(i, default, array):
     try:
@@ -19,10 +17,9 @@ def get_index_or(i, default, array):
         return default
 
 
-class Input(Drawable):
+class Input():
 
-    def __init__(self, display: Display):
-        super().__init__(display)
+    def __init__(self):
         self.axis = Vector2(0)
 
         self.keys_down = []  # pressed right now
@@ -117,15 +114,15 @@ class Input(Drawable):
         if self.axis.x != 0 or self.axis.y != 0:
             self.axis = self.axis.normalize()
 
-    def get_order_value(self) -> int:
-        return 10000
+    # def get_order_value(self) -> int:
+    #     return 10000
 
-    def raw_draw(self):
-        if self.selecting:
-            size = self.selection_in_progress - self.selection_begin
-            pygame.draw.rect(
-                self.display.screen,
-                self.selection_color,
-                Rect(self.selection_begin, size),
-                self.selection_border_width
-            )
+    # def raw_draw(self):
+    #     if self.selecting:
+    #         size = self.selection_in_progress - self.selection_begin
+    #         pygame.draw.rect(
+    #             self.display.screen,
+    #             self.selection_color,
+    #             Rect(self.selection_begin, size),
+    #             self.selection_border_width
+    #         )

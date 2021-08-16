@@ -11,8 +11,9 @@ from pygame.math import Vector2
 
 from opensimplex import OpenSimplex
 
+from .ecs import on_call
 from .utils import tint, diagonal_box_iter
-from .display import Drawable, Display
+from .display import Drawable, Display, Camera
 
 
 def noise_to_tile_id(simplex, x, y, delta):
@@ -38,12 +39,12 @@ class Map(Drawable):
 
     def __init__(
         self,
-        display: Display,
+        entity,
         iso_size_x: int,
         iso_size_y: int,
         cartesian_size: int
     ):
-        super().__init__(display)
+        super().__init__(entity)
         self.iso_size_x = iso_size_x
         self.iso_size_y = iso_size_y
 
@@ -68,14 +69,16 @@ class Map(Drawable):
                 )
             )
 
-        simplex = OpenSimplex(seed=random.randint(0, 99999999))
+        self.simplex = OpenSimplex(seed=random.randint(0, 99999999))
         self.map_data = [
             [
-                noise_to_tile_id(simplex, x, y, self.map_delta)
+                noise_to_tile_id(self.simplex, x, y, self.map_delta)
                 for x in range(iso_size_x)
             ]
             for y in range(iso_size_y)
         ]
+
+        self._cam = None
 
     def iso_to_cartesian(self, pos: Vector2) -> Vector2:
         return Vector2(
@@ -89,33 +92,26 @@ class Map(Drawable):
             pos.x + (2 * pos.y)
         ) / self.cartesian_size
 
-    def trap_camera(self, camera):
-        if camera.position.x < 0:
-            camera.position.x = 0
-
-        if camera.position.x > self.iso_size_x:
-            camera.position.x = self.iso_size_x
-
-        if camera.position.y < 0:
-            camera.position.y = 0
-
-        if camera.position.y > self.iso_size_y:
-            camera.position.y = self.iso_size_y
+    @on_call('draw')
+    def draw(self):
+        self.display.draw(self)
 
     def get_order_value(self) -> int:
         return -10000000
 
     def raw_draw(self):
-        cam_iso = self.display.camera.position
+        if not self._cam:
+            self._cam = self.game.camera.get_component(Camera)
+        cam_iso = self.game.camera.position
         cam_x, cam_y = (int(cam_iso.x), int(cam_iso.y))
         cam_size_x, cam_size_y = (
-            int(self.display.camera.size.x / self.tile_size.x),
-            int(self.display.camera.size.y / self.tile_size.y)
+            int(self._cam.size.x / self.tile_size.x),
+            int(self._cam.size.y / self.tile_size.y)
         )
         
         cam_x -= cam_size_x // 2
         cam_y -= int(cam_size_y * 1.5)
-
+    
         for lx, ly, x, y in diagonal_box_iter(
             cam_x, cam_y - 2, cam_size_x * 2, (cam_size_y * 2) + 5):
 
@@ -125,7 +121,7 @@ class Map(Drawable):
 
             world_pos = self.iso_to_cartesian(
                 Vector2(x, y)
-            ) + self.display.camera.get_draw_delta()
+            ) + self._cam.get_draw_delta()
             
             self.display.screen.blit(
                 self.tiles[self.map_data[x][y]],
@@ -136,17 +132,17 @@ class Map(Drawable):
 
 class Minimap(Drawable):
 
-    def __init__(self, display: Display, _map: Map):
-        super().__init__(display)
-        self.map = _map
+    def __init__(self, entity):
+        super().__init__(entity)
+        self.map = self.game.map
 
         self.cam_color = (218, 224, 44)
         self.tile_colors = []
-        for i in range(_map.map_delta):
+        for i in range(self.map.map_delta):
             self.tile_colors.append(
                 (0,
-                (i * 255) / _map.map_delta,
-                (max(0, i - 50) * 255) / _map.map_delta)
+                (i * 255) / self.map.map_delta,
+                (max(0, i - 50) * 255) / self.map.map_delta)
             )
 
         self.set_scale(3)
@@ -167,6 +163,10 @@ class Minimap(Drawable):
             point.x * self.scale_ratio.x,
             point.y * self.scale_ratio.y
         )
+
+    @on_call('draw')
+    def draw(self):
+        self.display.draw(self)
 
     def get_order_value(self) -> int:
         return 1000000
@@ -197,7 +197,7 @@ class Minimap(Drawable):
             self.cam_color,
             Rect(
                 self.world_to_mini(
-                    self.map.iso_to_cartesian(self.display.camera.position)
+                    self.map.iso_to_cartesian(self.game.camera.position)
                 ) - scaled_size / 2,
                 scaled_size
             ),
